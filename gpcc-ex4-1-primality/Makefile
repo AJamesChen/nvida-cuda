@@ -1,6 +1,7 @@
 NVCC ?= nvcc
 PYTHON ?= python
-NVCCFLAGS ?=
+GCC12 := $(shell command -v gcc-12 2>/dev/null)
+NVCCFLAGS ?= $(if $(GCC12),-ccbin $(GCC12),)
 
 TARGET := test_prime
 SOURCE := main.cu

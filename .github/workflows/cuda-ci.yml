@@ -1,0 +1,67 @@
+name: CUDA CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cuda:
+    runs-on: self-hosted
+
+    env:
+      PATH: /usr/local/cuda-12.3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /usr/local/cuda-12.3/lib64
+      CUDAHOSTCXX: /usr/bin/g++-12
+
+    strategy:
+      fail-fast: false
+      matrix:
+        exercise:
+          - gpcc-ex4-1-primality
+          - gpcc-ex4-2-multiply-array
+          - gpcc-ex4-3-vector-operation
+          - gpcc-ex4-4-array-power-sqrt
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Debug workspace
+        run: |
+          echo "PWD=$PWD"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          ls -la
+
+      - name: Check NVIDIA GPU
+        run: nvidia-smi
+
+      - name: Check CUDA compiler
+        run: nvcc --version
+
+      - name: Build ${{ matrix.exercise }}
+        working-directory: ${{ matrix.exercise }}
+        run: |
+          make clean
+          make NVCC="nvcc -ccbin gcc-12"
+      
+      - name: Force nvcc to use GCC 12
+        run: |
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/nvcc" <<'EOF'
+          #!/usr/bin/env bash
+          exec /usr/local/cuda-12.3/bin/nvcc -ccbin gcc-12 "$@"
+          EOF
+          chmod +x "$HOME/bin/nvcc"
+      
+      - name: Debug nvcc flags
+        run: |
+          echo "NVCC_PREPEND_FLAGS=$NVCC_PREPEND_FLAGS"
+          which nvcc
+          nvcc --version
+          gcc --version
+          gcc-12 --version
+      
+      - name: Run Python tests
+        working-directory: ${{ matrix.exercise }}
+        run: python3 -m pytest tests -v
