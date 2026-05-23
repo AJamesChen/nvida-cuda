@@ -1,0 +1,38 @@
+name: CUDA CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cuda:
+    runs-on: self-hosted
+
+    strategy:
+      fail-fast: false
+      matrix:
+        exercise:
+          - gpcc-ex4-1-primality
+          - gpcc-ex4-2-multiply-array
+          - gpcc-ex4-3-vector-operation
+          - gpcc-ex4-4-array-power-sqrt
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Check NVIDIA GPU
+        run: nvidia-smi
+
+      - name: Check CUDA compiler
+        run: nvcc --version
+
+      - name: Build ${{ matrix.exercise }}
+        working-directory: ${{ matrix.exercise }}
+        run: make
+
+      - name: Run Python tests
+        working-directory: ${{ matrix.exercise }}
+        run: |
+          python3 -m pip install --user pytest
+          python3 -m pytest tests -v
