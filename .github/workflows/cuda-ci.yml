@@ -45,6 +45,14 @@ jobs:
           make clean
           make NVCC="nvcc -ccbin gcc-12"
 
+      - name: Debug nvcc flags
+        run: |
+          echo "NVCC_PREPEND_FLAGS=$NVCC_PREPEND_FLAGS"
+          which nvcc
+          nvcc --version
+          gcc --version
+          gcc-12 --version
+      
       - name: Run Python tests
         working-directory: ${{ matrix.exercise }}
         run: python3 -m pytest tests -v
