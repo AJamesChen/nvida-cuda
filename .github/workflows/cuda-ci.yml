@@ -10,8 +10,8 @@ jobs:
     runs-on: self-hosted
 
     env:
-      PATH: /usr/local/cuda-12.3/bin:${{ env.PATH }}
-      LD_LIBRARY_PATH: /usr/local/cuda-12.3/lib64:${{ env.LD_LIBRARY_PATH }}
+      PATH: /usr/local/cuda-12.3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /usr/local/cuda-12.3/lib64
 
     strategy:
       fail-fast: false
