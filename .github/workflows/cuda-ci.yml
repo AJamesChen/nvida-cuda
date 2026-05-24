@@ -44,7 +44,16 @@ jobs:
         run: |
           make clean
           make NVCC="nvcc -ccbin gcc-12"
-
+      
+      - name: Force nvcc to use GCC 12
+        run: |
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/nvcc" <<'EOF'
+          #!/usr/bin/env bash
+          exec /usr/local/cuda-12.3/bin/nvcc -ccbin gcc-12 "$@"
+          EOF
+          chmod +x "$HOME/bin/nvcc"
+      
       - name: Debug nvcc flags
         run: |
           echo "NVCC_PREPEND_FLAGS=$NVCC_PREPEND_FLAGS"
