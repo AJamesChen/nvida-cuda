@@ -32,6 +32,11 @@ class VectorOperationsCudaProgramTest(unittest.TestCase):
         if nvcc is None:
             self.skipTest("nvcc is not installed")
 
+        nvcc_command = [nvcc]
+        gcc_12 = shutil.which("gcc-12")
+        if gcc_12 is not None:
+            nvcc_command.extend(["-ccbin", gcc_12])
+
         build_dir = tempfile.TemporaryDirectory()
         self.addCleanup(build_dir.cleanup)
         test_source = Path(build_dir.name) / "test_vector_operations.cu"
@@ -113,7 +118,12 @@ int main() {{
     vector_maximum<<<2, 4>>>(d_input_1, d_input_2, d_maximum, count);
     vector_minimum<<<2, 4>>>(d_input_1, d_input_2, d_minimum, count);
     vector_modulus<<<2, 4>>>(d_input_1, d_input_2, d_modulus, count);
-    CUDA_CHECK(cudaGetLastError());
+    cudaError_t kernel_err = cudaGetLastError();
+    if (kernel_err == cudaErrorUnsupportedPtxVersion) {{
+        fprintf(stderr, "CUDA driver cannot run PTX produced by this toolkit\\n");
+        return 77;
+    }}
+    CUDA_CHECK(kernel_err);
     CUDA_CHECK(cudaDeviceSynchronize());
 
     CUDA_CHECK(cudaMemcpy(multiply, d_multiply, bytes, cudaMemcpyDeviceToHost));
@@ -158,7 +168,7 @@ int main() {{
         )
         executable = Path(build_dir.name) / "test_vector_operations"
         subprocess.run(
-            [nvcc, str(test_source), "-o", str(executable)],
+            nvcc_command + [str(test_source), "-o", str(executable)],
             cwd=ROOT,
             text=True,
             capture_output=True,

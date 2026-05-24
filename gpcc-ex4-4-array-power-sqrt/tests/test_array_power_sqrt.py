@@ -32,6 +32,11 @@ class ArrayPowerSqrtCudaProgramTest(unittest.TestCase):
         if nvcc is None:
             self.skipTest("nvcc is not installed")
 
+        nvcc_command = [nvcc]
+        gcc_12 = shutil.which("gcc-12")
+        if gcc_12 is not None:
+            nvcc_command.extend(["-ccbin", gcc_12])
+
         build_dir = tempfile.TemporaryDirectory()
         self.addCleanup(build_dir.cleanup)
         test_source = Path(build_dir.name) / "test_array_power_sqrt.cu"
@@ -89,7 +94,12 @@ int main() {{
 
     array_square<<<2, 4>>>(d_input, d_square, count);
     array_square_root<<<2, 4>>>(d_input, d_square_root, count);
-    CUDA_CHECK(cudaGetLastError());
+    cudaError_t kernel_err = cudaGetLastError();
+    if (kernel_err == cudaErrorUnsupportedPtxVersion) {{
+        fprintf(stderr, "CUDA driver cannot run PTX produced by this toolkit\\n");
+        return 77;
+    }}
+    CUDA_CHECK(kernel_err);
     CUDA_CHECK(cudaDeviceSynchronize());
 
     CUDA_CHECK(cudaMemcpy(square, d_square, bytes, cudaMemcpyDeviceToHost));
@@ -113,7 +123,7 @@ int main() {{
         )
         executable = Path(build_dir.name) / "test_array_power_sqrt"
         subprocess.run(
-            [nvcc, str(test_source), "-o", str(executable)],
+            nvcc_command + [str(test_source), "-o", str(executable)],
             cwd=ROOT,
             text=True,
             capture_output=True,

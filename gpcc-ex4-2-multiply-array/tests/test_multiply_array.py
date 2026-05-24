@@ -18,9 +18,12 @@ class MultiplyArrayCudaProgramTest(unittest.TestCase):
             cwd=ROOT,
             text=True,
             capture_output=True,
-            check=True,
         )
 
+        if result.returncode == 77:
+            self.skipTest(result.stderr.strip())
+
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "")
         self.assertEqual(result.stderr, "")
 
@@ -28,6 +31,11 @@ class MultiplyArrayCudaProgramTest(unittest.TestCase):
         nvcc = shutil.which("nvcc")
         if nvcc is None:
             self.skipTest("nvcc is not installed")
+
+        nvcc_command = [nvcc]
+        gcc_12 = shutil.which("gcc-12")
+        if gcc_12 is not None:
+            nvcc_command.extend(["-ccbin", gcc_12])
 
         build_dir = tempfile.TemporaryDirectory()
         self.addCleanup(build_dir.cleanup)
@@ -50,6 +58,13 @@ class MultiplyArrayCudaProgramTest(unittest.TestCase):
 }} while (0)
 
 int main() {{
+    int device_count = 0;
+    cudaError_t device_err = cudaGetDeviceCount(&device_count);
+    if (device_err != cudaSuccess || device_count == 0) {{
+        fprintf(stderr, "no CUDA-capable device is available\\n");
+        return 77;
+    }}
+
     const int count = 6;
     const float scalar = 2.5f;
     const float input[count] = {{-4.0f, -1.5f, 0.0f, 1.0f, 3.25f, 10.0f}};
@@ -63,7 +78,12 @@ int main() {{
     CUDA_CHECK(cudaMemcpy(d_input, input, count * sizeof(float), cudaMemcpyHostToDevice));
 
     multiply_array<<<2, 4>>>(scalar, d_input, d_output, count);
-    CUDA_CHECK(cudaGetLastError());
+    cudaError_t kernel_err = cudaGetLastError();
+    if (kernel_err == cudaErrorUnsupportedPtxVersion) {{
+        fprintf(stderr, "CUDA driver cannot run PTX produced by this toolkit\\n");
+        return 77;
+    }}
+    CUDA_CHECK(kernel_err);
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(output, d_output, count * sizeof(float), cudaMemcpyDeviceToHost));
 
@@ -84,7 +104,7 @@ int main() {{
         )
         executable = Path(build_dir.name) / "test_multiply_array"
         subprocess.run(
-            [nvcc, str(test_source), "-o", str(executable)],
+            nvcc_command + [str(test_source), "-o", str(executable)],
             cwd=ROOT,
             text=True,
             capture_output=True,

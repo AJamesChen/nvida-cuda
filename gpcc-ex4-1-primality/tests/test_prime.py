@@ -28,6 +28,11 @@ class PrimeCudaProgramTest(unittest.TestCase):
         if nvcc is None:
             self.skipTest("nvcc is not installed")
 
+        nvcc_command = [nvcc]
+        gcc_12 = shutil.which("gcc-12")
+        if gcc_12 is not None:
+            nvcc_command.extend(["-ccbin", gcc_12])
+
         build_dir = tempfile.TemporaryDirectory()
         self.addCleanup(build_dir.cleanup)
         test_source = Path(build_dir.name) / "test_prime.cu"
@@ -57,7 +62,7 @@ int main() {{
         )
         executable = Path(build_dir.name) / "test_prime"
         subprocess.run(
-            [nvcc, str(test_source), "-o", str(executable)],
+            nvcc_command + [str(test_source), "-o", str(executable)],
             cwd=ROOT,
             text=True,
             capture_output=True,
