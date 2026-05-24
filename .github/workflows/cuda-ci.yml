@@ -40,7 +40,9 @@ jobs:
 
       - name: Build ${{ matrix.exercise }}
         working-directory: ${{ matrix.exercise }}
-        run: make clean && make
+        run: |
+          make clean
+          make NVCC="nvcc -ccbin gcc-12"
 
       - name: Run Python tests
         working-directory: ${{ matrix.exercise }}
