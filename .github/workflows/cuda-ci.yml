@@ -5,34 +5,31 @@ on:
   pull_request:
 
 jobs:
-  cuda:
+  build-and-test:
     runs-on: self-hosted
 
-    strategy:
-      fail-fast: false
-      matrix:
-        exercise:
-          - gpcc-ex4-1-primality
-          - gpcc-ex4-2-multiply-array
-          - gpcc-ex4-3-vector-operation
-          - gpcc-ex4-4-array-power-sqrt
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: Check NVIDIA GPU
-        run: nvidia-smi
+      - name: Show CUDA environment
+        run: |
+          nvidia-smi
+          nvcc --version
 
-      - name: Check CUDA compiler
-        run: nvcc --version
-
-      - name: Build ${{ matrix.exercise }}
-        working-directory: ${{ matrix.exercise }}
-        run: make
+      - name: Build all CUDA exercises
+        run: |
+          for dir in gpcc-*; do
+            if [ -f "$dir/Makefile" ]; then
+              echo "Building $dir"
+              make -C "$dir" clean || true
+              make -C "$dir"
+            fi
+          done
 
       - name: Run Python tests
-        working-directory: ${{ matrix.exercise }}
         run: |
-          python3 -m pip install --user pytest
-          python3 -m pytest tests -v
+          python3 -m pytest \
+            gpcc-ex4-1-primality/tests \
+            gpcc-ex4-2-multiply-array/tests \
+            gpcc-ex4-3-vector-operation/tests \
+            gpcc-ex4-4-array-power-sqrt/tests
